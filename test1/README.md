@@ -37,7 +37,8 @@ SELECT d.department_name ,d.location_id,l.country_id
 FROM hr.departments d, hr.locations l
 WHERE d.location_id = l.location_id AND l.country_id='US'
 ```
-这段语句查询了depaetments和locations两张表，并从中将location国籍为‘US’的部门相关信息输出。查询结果如下：<br>
+这段语句查询了depaetments和locations两张表，并从中将location国籍为‘US’的部门相关信息输出。<br>
+查询结果如下：<br>
 ![IMAGE](https://raw.githubusercontent.com/HaurchefantGreystone/oracle/master/img2.png)<br>
 经过优化指导后，得到的语句与我自己编写的语句相同，说明此语句也达到了较高效率。
 ```SQL
