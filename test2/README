@@ -1,5 +1,5 @@
 第一步：连接oracle，创建角色并分配权限空间
-```sql
+···sql
 $ sqlplus system/123@pdborcl
 SQL> CREATE ROLE test;
 Role created.
@@ -12,10 +12,10 @@ User altered.
 SQL> GRANT test TO test2;
 Grant succeeded.
 SQL> exit
-```
+···
 
 第二步：test2与数据库连接并建新表和视图myview
-```sql
+···sql
 $ sqlplus new_user/123@pdborcl
 SQL> show user;
 USER is "TEST2"
@@ -36,10 +36,10 @@ wang
 SQL> GRANT SELECT ON myview TO hr;
 Grant succeeded.
 SQL>exit
-```
+···
 
 第三步：hr用户查询myview
-```sql
+···sql
 $ sqlplus hr/123@pdborcl
 SQL> SELECT * FROM new_user.myview;
 NAME
@@ -51,5 +51,5 @@ wang
 zhang
 wang
 SQL> exit
-```
+···
 获取与其他同学的数据共享（此时发现查询得到的数据中有其他同学的数据），实验结束。
