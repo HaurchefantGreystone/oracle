@@ -1,0 +1,628 @@
+首先我登录了system账号，通过如下代码赋予了我的账号相关分区的权限：
+```sql
+
+ALTER USER GYJTESTGYJTESTGYJTESTGYJTEST  QUOTA UNLIMITED ON USERS;
+ALTER USER GYJTESTGYJTESTGYJTESTGYJTEST  QUOTA UNLIMITED ON USERS02;
+ALTER USER GYJTESTGYJTESTGYJTEST  ACCOUNT UNLOCK;
+
+GRANT "CONNECT" TO GYJTESTGYJTEST  WITH ADMIN OPTION;
+GRANT "RESOURCE" TO GYJTEST WITH ADMIN OPTION;
+ALTER USER GYJTEST DEFAULT ROLE "CONNECT","RESOURCE";
+
+GRANT CREATE VIEW TO GYJTEST WITH ADMIN OPTION;
+```
+
+因为此前我已经在该分区进行过数次实验，所以执行如下代码清楚之前的实验内容：
+```sql
+declare
+      num   number;
+begin
+      select count(1) into num from user_tables where TABLE_NAME = 'DEPARTMENTS';
+      if   num=1   then
+          execute immediate 'drop table DEPARTMENTS cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_tables where TABLE_NAME = 'EMPLOYEES';
+      if   num=1   then
+          execute immediate 'drop table EMPLOYEES cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_tables where TABLE_NAME = 'ORDER_ID_TEMP';
+      if   num=1   then
+          execute immediate 'drop table ORDER_ID_TEMP cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_tables where TABLE_NAME = 'ORDER_DETAILS';
+      if   num=1   then
+          execute immediate 'drop table ORDER_DETAILS cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_tables where TABLE_NAME = 'ORDERS';
+      if   num=1   then
+          execute immediate 'drop table ORDERS cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_tables where TABLE_NAME = 'PRODUCTS';
+      if   num=1   then
+          execute immediate 'drop table PRODUCTS cascade constraints PURGE';
+      end   if;
+
+      select count(1) into num from user_sequences where SEQUENCE_NAME = 'SEQ_ORDER_DETAILS_ID';
+      if   num=1   then
+          execute immediate 'drop  SEQUENCE SEQ_ORDER_DETAILS_ID';
+      end   if;
+
+      select count(1) into num from user_sequences where SEQUENCE_NAME = 'SEQ_ORDER_ID';
+      if   num=1   then
+          execute immediate 'drop  SEQUENCE SEQ_ORDER_ID';
+      end   if;
+      select count(1) into num from user_views where VIEW_NAME = 'VIEW_ORDER_DETAILS';
+      if   num=1   then
+          execute immediate 'drop VIEW VIEW_ORDER_DETAILS';
+      end   if;
+
+      SELECT count(object_name)  into num FROM user_objects_ae WHERE object_type = 'PACKAGE' and OBJECT_NAME='MYPACK';
+      if   num=1   then
+          execute immediate 'DROP PACKAGE MYPACK';
+      end   if;
+end;
+```
+
+之后创建本次用表：
+```sql
+CREATE TABLE DEPARTMENTS
+(
+  DEPARTMENT_ID NUMBER(6, 0) NOT NULL
+, DEPARTMENT_NAME VARCHAR2(40 BYTE) NOT NULL
+, CONSTRAINT DEPARTMENTS_PK PRIMARY KEY
+  (
+    DEPARTMENT_ID
+  )
+  USING INDEX
+  (
+      CREATE UNIQUE INDEX DEPARTMENTS_PK ON DEPARTMENTS (DEPARTMENT_ID ASC)
+      NOLOGGING
+      TABLESPACE USERS
+      PCTFREE 10
+      INITRANS 2
+      STORAGE
+      (
+        INITIAL 65536
+        NEXT 1048576
+        MINEXTENTS 1
+        MAXEXTENTS UNLIMITED
+        BUFFER_POOL DEFAULT
+      )
+      NOPARALLEL
+  )
+  ENABLE
+)
+NOLOGGING
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 1
+STORAGE
+(
+  INITIAL 65536
+  NEXT 1048576
+  MINEXTENTS 1
+  MAXEXTENTS UNLIMITED
+  BUFFER_POOL DEFAULT
+)
+NOCOMPRESS NO INMEMORY NOPARALLEL;
+
+CREATE TABLE DEPARTMENTS
+(
+  DEPARTMENT_ID NUMBER(6, 0) NOT NULL
+, DEPARTMENT_NAME VARCHAR2(40 BYTE) NOT NULL
+, CONSTRAINT DEPARTMENTS_PK PRIMARY KEY
+  (
+    DEPARTMENT_ID
+  )
+  USING INDEX
+  (
+      CREATE UNIQUE INDEX DEPARTMENTS_PK ON DEPARTMENTS (DEPARTMENT_ID ASC)
+      NOLOGGING
+      TABLESPACE USERS
+      PCTFREE 10
+      INITRANS 2
+      STORAGE
+      (
+        INITIAL 65536
+        NEXT 1048576
+        MINEXTENTS 1
+        MAXEXTENTS UNLIMITED
+        BUFFER_POOL DEFAULT
+      )
+      NOPARALLEL
+  )
+  ENABLE
+)
+NOLOGGING
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 1
+STORAGE
+(
+  INITIAL 65536
+  NEXT 1048576
+  MINEXTENTS 1
+  MAXEXTENTS UNLIMITED
+  BUFFER_POOL DEFAULT
+)
+NOCOMPRESS NO INMEMORY NOPARALLEL;
+
+CREATE GLOBAL TEMPORARY TABLE "ORDER_ID_TEMP"
+   (	"ORDER_ID" NUMBER(10,0) NOT NULL ENABLE,
+	 CONSTRAINT "ORDER_ID_TEMP_PK" PRIMARY KEY ("ORDER_ID") ENABLE
+   ) ON COMMIT DELETE ROWS ;
+
+   COMMENT ON TABLE "ORDER_ID_TEMP"  IS '用于触发器存储临时ORDER_ID';
+   
+   CREATE TABLE ORDERS
+(
+  ORDER_ID NUMBER(10, 0) NOT NULL
+, CUSTOMER_NAME VARCHAR2(40 BYTE) NOT NULL
+, CUSTOMER_TEL VARCHAR2(40 BYTE) NOT NULL
+, ORDER_DATE DATE NOT NULL
+, EMPLOYEE_ID NUMBER(6, 0) NOT NULL
+, DISCOUNT NUMBER(8, 2) DEFAULT 0
+, TRADE_RECEIVABLE NUMBER(8, 2) DEFAULT 0
+)
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 1
+STORAGE
+(
+  BUFFER_POOL DEFAULT
+)
+NOCOMPRESS
+NOPARALLEL
+PARTITION BY RANGE (ORDER_DATE)
+(
+  PARTITION PARTITION_BEFORE_2016 VALUES LESS THAN (TO_DATE(' 2016-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN'))
+  NOLOGGING
+  TABLESPACE USERS
+  PCTFREE 10
+  INITRANS 1
+  STORAGE
+  (
+    INITIAL 8388608
+    NEXT 1048576
+    MINEXTENTS 1
+    MAXEXTENTS UNLIMITED
+    BUFFER_POOL DEFAULT
+  )
+  NOCOMPRESS NO INMEMORY
+, PARTITION PARTITION_BEFORE_2017 VALUES LESS THAN (TO_DATE(' 2017-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN'))
+  NOLOGGING
+  TABLESPACE USERS02
+  PCTFREE 10
+  INITRANS 1
+  STORAGE
+  (
+    INITIAL 8388608
+    NEXT 1048576
+    MINEXTENTS 1
+    MAXEXTENTS UNLIMITED
+    BUFFER_POOL DEFAULT
+  )
+  NOCOMPRESS NO INMEMORY
+);
+```
+
+之后创建所用索引：
+```sql
+CREATE INDEX ORDERS_INDEX_DATE ON ORDERS (ORDER_DATE ASC)
+LOCAL
+(
+  PARTITION PARTITION_BEFORE_2016
+    TABLESPACE USERS
+    PCTFREE 10
+    INITRANS 2
+    STORAGE
+    (
+      INITIAL 8388608
+      NEXT 1048576
+      MINEXTENTS 1
+      MAXEXTENTS UNLIMITED
+      BUFFER_POOL DEFAULT
+    )
+    NOCOMPRESS
+, PARTITION PARTITION_BEFORE_2017
+    TABLESPACE USERS02
+    PCTFREE 10
+    INITRANS 2
+    STORAGE
+    (
+      INITIAL 8388608
+      NEXT 1048576
+      MINEXTENTS 1
+      MAXEXTENTS UNLIMITED
+      BUFFER_POOL DEFAULT
+    )
+    NOCOMPRESS
+)
+STORAGE
+(
+  BUFFER_POOL DEFAULT
+)
+NOPARALLEL;
+
+CREATE INDEX ORDERS_INDEX_CUSTOMER_NAME ON ORDERS (CUSTOMER_NAME ASC)
+NOLOGGING
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 2
+STORAGE
+(
+  INITIAL 65536
+  NEXT 1048576
+  MINEXTENTS 1
+  MAXEXTENTS UNLIMITED
+  BUFFER_POOL DEFAULT
+)
+NOPARALLEL;
+
+CREATE UNIQUE INDEX ORDERS_PK ON ORDERS (ORDER_ID ASC)
+GLOBAL PARTITION BY HASH (ORDER_ID)
+(
+  PARTITION INDEX_PARTITION1 TABLESPACE USERS
+    NOCOMPRESS
+, PARTITION INDEX_PARTITION2 TABLESPACE USERS02
+    NOCOMPRESS
+)
+NOLOGGING
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 2
+STORAGE
+(
+  INITIAL 65536
+  NEXT 1048576
+  MINEXTENTS 1
+  MAXEXTENTS UNLIMITED
+  BUFFER_POOL DEFAULT
+)
+NOPARALLEL;
+
+ALTER TABLE ORDERS
+ADD CONSTRAINT ORDERS_PK PRIMARY KEY
+(
+  ORDER_ID
+)
+USING INDEX ORDERS_PK
+ENABLE;
+
+ALTER TABLE ORDERS
+ADD CONSTRAINT ORDERS_FK1 FOREIGN KEY
+(
+  EMPLOYEE_ID
+)
+REFERENCES EMPLOYEES
+(
+  EMPLOYEE_ID
+)
+ENABLE;
+
+CREATE TABLE ORDER_DETAILS
+(
+  ID NUMBER(10, 0) NOT NULL
+, ORDER_ID NUMBER(10, 0) NOT NULL
+, PRODUCT_NAME VARCHAR2(40 BYTE) NOT NULL
+, PRODUCT_NUM NUMBER(8, 2) NOT NULL
+, PRODUCT_PRICE NUMBER(8, 2) NOT NULL
+, CONSTRAINT ORDER_DETAILS_FK1 FOREIGN KEY
+  (
+  ORDER_ID
+  )
+  REFERENCES ORDERS
+  (
+  ORDER_ID
+  )
+  ENABLE
+)
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 1
+STORAGE
+(
+  BUFFER_POOL DEFAULT
+)
+NOCOMPRESS
+NOPARALLEL
+PARTITION BY REFERENCE (ORDER_DETAILS_FK1)
+(
+  PARTITION PARTITION_BEFORE_2016
+  NOLOGGING
+  TABLESPACE USERS
+  PCTFREE 10
+  INITRANS 1
+  STORAGE
+  (
+    INITIAL 8388608
+    NEXT 1048576
+    MINEXTENTS 1
+    MAXEXTENTS UNLIMITED
+    BUFFER_POOL DEFAULT
+  )
+  NOCOMPRESS NO INMEMORY,
+  PARTITION PARTITION_BEFORE_2017
+  NOLOGGING
+  TABLESPACE USERS02
+  PCTFREE 10
+  INITRANS 1
+  STORAGE
+  (
+    INITIAL 8388608
+    NEXT 1048576
+    MINEXTENTS 1
+    MAXEXTENTS UNLIMITED
+    BUFFER_POOL DEFAULT
+  )
+  NOCOMPRESS NO INMEMORY
+)
+;
+
+CREATE UNIQUE INDEX ORDER_DETAILS_PK ON ORDER_DETAILS (ID ASC)
+NOLOGGING
+TABLESPACE USERS
+PCTFREE 10
+INITRANS 2
+STORAGE
+(
+  INITIAL 65536
+  NEXT 1048576
+  MINEXTENTS 1
+  MAXEXTENTS UNLIMITED
+  BUFFER_POOL DEFAULT
+)
+NOPARALLEL;
+
+ALTER TABLE ORDER_DETAILS
+ADD CONSTRAINT ORDER_DETAILS_PK PRIMARY KEY
+(
+  ID
+)
+USING INDEX ORDER_DETAILS_PK
+ENABLE;
+
+
+CREATE INDEX ORDER_DETAILS_ORDER_ID ON ORDER_DETAILS (ORDER_ID)
+GLOBAL PARTITION BY HASH (ORDER_ID)
+(
+  PARTITION INDEX_PARTITION1 TABLESPACE USERS
+    NOCOMPRESS
+, PARTITION INDEX_PARTITION2 TABLESPACE USERS02
+    NOCOMPRESS
+);
+
+ALTER TABLE ORDER_DETAILS
+ADD CONSTRAINT ORDER_DETAILS_PRODUCT_NUM CHECK
+(Product_Num>0)
+ENABLE;
+```
+
+创建触发器：
+```sql
+--1
+CREATE OR REPLACE EDITIONABLE TRIGGER "ORDERS_TRIG_ROW_LEVEL"
+BEFORE INSERT OR UPDATE OF DISCOUNT ON "ORDERS"
+FOR EACH ROW --行级触发器
+declare
+  m number(8,2);
+BEGIN
+  if inserting then
+       :new.TRADE_RECEIVABLE := - :new.discount;
+  else
+      select sum(PRODUCT_NUM*PRODUCT_PRICE) into m from ORDER_DETAILS where ORDER_ID=:old.ORDER_ID;
+      if m is null then
+        m:=0;
+      end if;
+      :new.TRADE_RECEIVABLE := m - :new.discount;
+  end if;
+END;
+/
+ALTER TRIGGER "ORDERS_TRIG_ROW_LEVEL" DISABLE;
+
+--2
+CREATE OR REPLACE EDITIONABLE TRIGGER "ORDER_DETAILS_ROW_TRIG"
+AFTER DELETE OR INSERT OR UPDATE  ON ORDER_DETAILS
+FOR EACH ROW
+BEGIN
+  --DBMS_OUTPUT.PUT_LINE(:NEW.ORDER_ID);
+  IF :NEW.ORDER_ID IS NOT NULL THEN
+    MERGE INTO ORDER_ID_TEMP A
+    USING (SELECT 1 FROM DUAL) B
+    ON (A.ORDER_ID=:NEW.ORDER_ID)
+    WHEN NOT MATCHED THEN
+      INSERT (ORDER_ID) VALUES(:NEW.ORDER_ID);
+  END IF;
+  IF :OLD.ORDER_ID IS NOT NULL THEN
+    MERGE INTO ORDER_ID_TEMP A
+    USING (SELECT 1 FROM DUAL) B
+    ON (A.ORDER_ID=:OLD.ORDER_ID)
+    WHEN NOT MATCHED THEN
+      INSERT (ORDER_ID) VALUES(:OLD.ORDER_ID);
+  END IF;
+END;
+/
+ALTER TRIGGER "ORDER_DETAILS_ROW_TRIG" DISABLE;
+
+--3
+  CREATE OR REPLACE EDITIONABLE TRIGGER "ORDER_DETAILS_SNTNS_TRIG"
+AFTER DELETE OR INSERT OR UPDATE ON ORDER_DETAILS
+declare
+  m number(8,2);
+BEGIN
+  FOR R IN (SELECT ORDER_ID FROM ORDER_ID_TEMP)
+  LOOP
+    --DBMS_OUTPUT.PUT_LINE(R.ORDER_ID);
+    select sum(PRODUCT_NUM*PRODUCT_PRICE) into m from ORDER_DETAILS
+      where ORDER_ID=R.ORDER_ID;
+    if m is null then
+      m:=0;
+    end if;
+    UPDATE ORDERS SET TRADE_RECEIVABLE = m - discount
+      WHERE ORDER_ID=R.ORDER_ID;
+  END LOOP;
+  --delete from ORDER_ID_TEMP; --这句话很重要，否则可能一直不释放空间，后继插入会非常慢。
+END;
+/
+ALTER TRIGGER "ORDER_DETAILS_SNTNS_TRIG" DISABLE;
+```
+
+然后向表中插入循环插入数据：
+```sql
+declare
+  dt date;
+  m number(8,2);
+  V_EMPLOYEE_ID NUMBER(6);
+  v_order_id number(10);
+  v_name varchar2(100);
+  v_tel varchar2(100);
+  v number(10,2);
+
+begin
+  for i in 1..10000
+  loop
+    if i mod 2 =0 then
+      dt:=to_date('2015-3-2','yyyy-mm-dd')+(i mod 60);
+    else
+      dt:=to_date('2016-3-2','yyyy-mm-dd')+(i mod 60);
+    end if;
+    V_EMPLOYEE_ID:=CASE I MOD 6 WHEN 0 THEN 11 WHEN 1 THEN 111 WHEN 2 THEN 112
+                                WHEN 3 THEN 12 WHEN 4 THEN 121 ELSE 122 END;
+    --插入订单
+    v_order_id:=SEQ_ORDER_ID.nextval; --应该将SEQ_ORDER_ID.nextval保存到变量中。
+    v_name := 'aa'|| 'aa';
+    v_name := 'zhang' || i;
+    v_tel := '139888883' || i;
+    insert /*+append*/ into ORDERS (ORDER_ID,CUSTOMER_NAME,CUSTOMER_TEL,ORDER_DATE,EMPLOYEE_ID,DISCOUNT)
+      values (v_order_id,v_name,v_tel,dt,V_EMPLOYEE_ID,dbms_random.value(100,0));
+    --插入订单y一个订单包括3个产品
+    v:=dbms_random.value(10000,4000);
+    v_name:='computer'|| (i mod 3 + 1);
+    insert /*+append*/ into ORDER_DETAILS(ID,ORDER_ID,PRODUCT_NAME,PRODUCT_NUM,PRODUCT_PRICE)
+      values (SEQ_ORDER_DETAILS_ID.NEXTVAL,v_order_id,v_name,2,v);
+    v:=dbms_random.value(1000,50);
+    v_name:='paper'|| (i mod 3 + 1);
+    insert /*+append*/ into ORDER_DETAILS(ID,ORDER_ID,PRODUCT_NAME,PRODUCT_NUM,PRODUCT_PRICE)
+      values (SEQ_ORDER_DETAILS_ID.NEXTVAL,v_order_id,v_name,3,v);
+    v:=dbms_random.value(9000,2000);
+    v_name:='phone'|| (i mod 3 + 1);
+    insert /*+append*/ into ORDER_DETAILS(ID,ORDER_ID,PRODUCT_NAME,PRODUCT_NUM,PRODUCT_PRICE)
+      values (SEQ_ORDER_DETAILS_ID.NEXTVAL,v_order_id,v_name,1,v);
+    --在触发器关闭的情况下，需要手工计算每个订单的应收金额：
+    select sum(PRODUCT_NUM*PRODUCT_PRICE) into m from ORDER_DETAILS where ORDER_ID=v_order_id;
+    if m is null then
+     m:=0;
+    end if;
+    UPDATE ORDERS SET TRADE_RECEIVABLE = m - discount WHERE ORDER_ID=v_order_id;
+    IF I MOD 1000 =0 THEN
+      commit; --每次提交会加快插入数据的速度
+    END IF;
+  end loop;
+  --统计用户的所有表，所需时间很长：2千万行数据，需要1600秒，该语句可选
+  --dbms_stats.gather_schema_stats(User,estimate_percent=>100,cascade=> TRUE); --estimate_percent采样行的百分比
+end;
+/
+
+ALTER TRIGGER "ORDERS_TRIG_ROW_LEVEL" ENABLE;
+ALTER TRIGGER "ORDER_DETAILS_SNTNS_TRIG" ENABLE;
+ALTER TRIGGER "ORDER_DETAILS_ROW_TRIG" ENABLE;
+
+--最后动态增加一个PARTITION_BEFORE_2018分区：
+ALTER TABLE ORDERS
+ADD PARTITION PARTITION_BEFORE_2018 VALUES LESS THAN (TO_DATE(' 2018-01-01 00:00:00', 'SYYYY-MM-DD HH24:MI:SS', 'NLS_CALENDAR=GREGORIAN'));
+
+ALTER INDEX ORDERS_INDEX_DATE
+MODIFY PARTITION PARTITION_BEFORE_2018
+NOCOMPRESS;
+
+```
+
+之后开始执行查询内容：
+
+1.查询某个员工的信息
+```sql
+select * from ORDERS where  order_id=1;
+select * from ORDER_DETAILS where  order_id=1;
+select * from VIEW_ORDER_DETAILS where order_id=1;
+```
+
+2.递归查询某个员工及其所有下属，子下属员工。
+```sql
+WITH A (EMPLOYEE_ID,NAME,EMAIL,PHONE_NUMBER,HIRE_DATE,SALARY,MANAGER_ID,DEPARTMENT_ID) AS
+  (SELECT EMPLOYEE_ID,NAME,EMAIL,PHONE_NUMBER,HIRE_DATE,SALARY,MANAGER_ID,DEPARTMENT_ID
+    FROM employees WHERE employee_ID = 11
+    UNION ALL
+  SELECT B.EMPLOYEE_ID,B.NAME,B.EMAIL,B.PHONE_NUMBER,B.HIRE_DATE,B.SALARY,B.MANAGER_ID,B.DEPARTMENT_ID
+    FROM A, employees B WHERE A.EMPLOYEE_ID = B.MANAGER_ID)
+SELECT * FROM A;
+```
+
+3.查询订单表，并且包括订单的订单应收货款: Trade_Receivable= sum(订单详单表.ProductNum*订单详单表.ProductPrice)- Discount。
+```sql
+SELECT *
+SUM(ORDERS.ProductNum*ORSERS.ProductPrice)- Discount AS "Teade_Receivable"
+FROM ORDERS
+```
+
+4.查询订单详表，要求显示订单的客户名称和客户电话，产品类型用汉字描述。
+```sql
+SELECT o.ORDER_ID	,o.CUSTOMER_NAME ,o.CUSTOMER_TEL d.PRODUCT_NAME
+FROM ORDERS o,ORDER_DETAILS d
+WHERE o.ORDER_ID == d.ORDER_ID
+```
+
+5.查询出所有空订单，即没有订单详单的订单。
+```sql
+SELECT o.ORDER_ID
+FROM ORDERS o,ORDER_DETAILS d
+WHERE o.ORDER_ID NOT IN d.ORDER_ID
+```
+
+6.查询部门表，同时显示部门的负责人姓名。
+```sql
+SELECT e.NAME
+FROM EMPLOYEES e,DEPARTMENTS d
+WHERE e.
+--这个知道大致思路，但是不知道怎么写
+```
+
+7.查询部门表，统计每个部门的销售总金额。
+。。。
+
+最后对查询过程产生的数据进行查看
+```sql
+--查看数据文件的使用情况
+select * from dba_datafiles;
+
+--查看表空间的使用情况
+SELECT a.tablespace_name "表空间名",
+total "表空间大小",
+free "表空间剩余大小",
+(total - free) "表空间使用大小",
+total / (1024 * 1024 * 1024) "表空间大小(G)",
+free / (1024 * 1024 * 1024) "表空间剩余大小(G)",
+(total - free) / (1024 * 1024 * 1024) "表空间使用大小(G)",
+round((total - free) / total, 4) * 100 "使用率 %"
+FROM (SELECT tablespace_name, SUM(bytes) free
+FROM dba_free_space
+GROUP BY tablespace_name) a,
+(SELECT tablespace_name, SUM(bytes) total
+FROM dba_data_files
+GROUP BY tablespace_name) b
+WHERE a.tablespace_name = b.tablespace_name
+
+--查看数据文件大小:
+[oracle@cdh3 ~]$ ls -lh /home/oracle/app/oracle/oradata/orcl/pdbtest/pdbtest_users*
+-rw-r----- 1 oracle root 3.8G 11月  1 14:53 /home/oracle/app/oracle/oradata/orcl/pdbtest/pdbtest_users01_2.dbf
+-rw-r----- 1 oracle root 2.4G 11月  1 14:53 /home/oracle/app/oracle/oradata/orcl/pdbtest/pdbtest_users01.dbf
+-rw-r----- 1 oracle root 1.5G 11月  1 14:53 /home/oracle/app/oracle/oradata/orcl/pdbtest/pdbtest_users02_1.dbf
+-rw-r----- 1 oracle root 2.5G 11月  1 14:53 /home/oracle/app/oracle/oradata/orcl/pdbtest/pdbtest_users02_2.dbf
+*/
+```
+
+实验结束
